@@ -1,0 +1,255 @@
+# =============================================================================
+# Oligo Design Pipeline Configuration
+# =============================================================================
+
+# Working directory (default: current directory)
+workdir: "."
+
+# Genome build
+genome_build: "hg38"
+
+# Design modes to run (pcr, panel, or both)
+design_modes:
+  - "pcr"
+  - "panel"
+
+# =============================================================================
+# Resource URLs
+# =============================================================================
+
+urls:
+  # Ensembl human reference genome
+  reference_fasta: "https://ftp.ensembl.org/pub/release-111/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz"
+  
+  # gnomAD variants (latest version)
+  gnomad_vcf: "https://gnomad-public-us-east-1.s3.amazonaws.com/release/4.0/vcf/genomes/gnomad.genomes.v4.0.sites.chr{chr}.vcf.bgz"
+  
+  # Annotation (optional)
+  annotation_gtf: "https://ftp.ensembl.org/pub/release-111/gtf/homo_sapiens/Homo_sapiens.GRCh38.111.gtf.gz"
+
+# Chromosomes to include (for full genome, use 1-22,X,Y)
+chromosomes:
+  - "22"  # Start with chr22 for testing
+  # - "1"
+  # - "2"
+  # ... add more as needed
+
+# =============================================================================
+# Tool Configuration
+# =============================================================================
+
+# Environment modules (adjust to your system)
+modules:
+  blast: "blast/2.12.0"
+  bowtie2: "bowtie2/2.4.5"
+  bcftools: "bcftools/1.17"
+  samtools: "samtools/1.17"
+  primer3: "primer3/2.6.1"
+
+# Thread allocation per rule
+threads:
+  download: 2
+  blast_index: 4
+  bowtie2_index: 8
+  consensus: 4
+  design: 2
+  screening: 6
+
+# Memory allocation per rule
+memory:
+  download: "2G"
+  blast_index: "8G"
+  bowtie2_index: "16G"
+  consensus: "8G"
+  design: "4G"
+  screening: "8G"
+
+# Global resource limits
+max_threads: 8
+max_memory: "32G"
+
+# =============================================================================
+# Primer3 Configuration
+# =============================================================================
+
+primer3:
+  pcr:
+    # PCR primer settings
+    primer_opt_size: 20
+    primer_min_size: 18
+    primer_max_size: 25
+    primer_opt_tm: 60.0
+    primer_min_tm: 58.0
+    primer_max_tm: 62.0
+    primer_min_gc: 40.0
+    primer_max_gc: 60.0
+    product_size_range: "100-300"
+    primer_max_poly_x: 4
+    primer_max_ns_accepted: 0
+  
+  panel:
+    # Probe design settings
+    primer_opt_size: 120
+    primer_min_size: 80
+    primer_max_size: 160
+    primer_opt_tm: 65.0
+    primer_min_tm: 62.0
+    primer_max_tm: 68.0
+    primer_min_gc: 35.0
+    primer_max_gc: 65.0
+    primer_max_poly_x: 5
+    primer_max_ns_accepted: 1
+
+# =============================================================================
+# Specificity Screening Configuration
+# =============================================================================
+
+screening:
+  # Bowtie2 parameters for off-target detection
+  bowtie2:
+    max_alignments: 100  # -k parameter
+    seed_length: 16      # -L parameter
+    allow_mismatches: 2  # -N parameter
+  
+  # BLAST parameters
+  blast:
+    evalue: 1000
+    word_size: 7
+    max_target_seqs: 100
+  
+  # Filtering criteria
+  max_off_targets: 10
+  min_specificity_score: 0.8
+
+# =============================================================================
+# Output Configuration
+# =============================================================================
+
+output:
+  # File formats
+  formats:
+    - "tsv"
+    - "bed"
+    - "fasta"
+  
+  # Include additional information
+  include_sequences: true
+  include_coordinates: true
+  include_scores: true
+  
+  # Report settings
+  html_report: true
+  summary_stats: true
+
+# =============================================================================
+# Validation Configuration
+# =============================================================================
+
+validation:
+  # Test primer sequences (known good examples)
+  test_primers:
+    - name: "GAPDH_F"
+      sequence: "GTCAACGGATTTGGTCGTATTG"
+      type: "forward"
+    - name: "GAPDH_R" 
+      sequence: "CATGGGTGGAATCATATTGGAA"
+      type: "reverse"
+    - name: "ACTB_F"
+      sequence: "CATGTACGTTGCTATCCAGGC"
+      type: "forward"
+    - name: "ACTB_R"
+      sequence: "CTCCTTAATGTCACGCACGAT"
+      type: "reverse"
+  
+  # Validation criteria
+  max_acceptable_off_targets: 5
+  min_primer_tm: 58.0
+  max_primer_tm: 62.0
+
+# =============================================================================
+# Pipeline Settings
+# =============================================================================
+
+# Logging level (DEBUG, INFO, WARNING, ERROR)
+logging_level: "INFO"
+
+# Temporary file cleanup
+cleanup_temp_files: true
+
+# Force rebuild of indexes
+force_rebuild: false
+
+# Test mode (uses smaller datasets)
+test_mode: false
+
+# Development settings
+debug: false
+dry_run: false
+
+# =============================================================================
+# File Naming Patterns
+# =============================================================================
+
+patterns:
+  reference_fasta: "resources/{build}.fa"
+  panel_fasta: "resources/{build}_panel.fa"
+  vcf_file: "resources/gnomad_chr{chr}.vcf.gz"
+  blast_db: "results/indexes/{mode}/blast/{build}"
+  bowtie2_index: "results/indexes/{mode}/bowtie2/{build}"
+  candidates: "results/design/{mode}/candidates.tsv"
+  filtered: "results/design/{mode}/filtered.tsv"
+  report: "results/reports/{mode}_report.html"
+
+# =============================================================================
+# Quality Control
+# =============================================================================
+
+qc:
+  # Minimum file sizes (bytes)
+  min_file_sizes:
+    fasta: 1000000      # 1MB
+    vcf: 100000         # 100KB
+    candidates: 1000    # 1KB
+  
+  # Expected record counts
+  min_records:
+    candidates: 10
+    filtered: 5
+  
+  # Performance benchmarks
+  max_runtime_minutes:
+    download: 30
+    indexing: 120
+    design: 60
+    screening: 90
+
+# =============================================================================
+# Database Configuration (PostgreSQL + BioSQL)
+# =============================================================================
+
+database:
+  # Connection settings
+  host: "localhost"
+  port: 5432
+  database: "oligodb"
+  user: "postgres"
+  password: ""  # Set via environment variable PGPASSWORD or .pgpass file
+  
+  # Project settings
+  project_name: "OligoDesign_hg38_2025"
+  project_description: "Automated oligo design pipeline results for hg38 genome"
+  
+  # Performance settings
+  batch_size: 1000
+  connection_timeout: 30
+  
+  # Schema settings
+  schema: "public"
+  
+  # Backup settings
+  backup_enabled: true
+  backup_retention_days: 30
+  
+  # Index optimization
+  trigram_similarity_threshold: 0.7
+  enable_sequence_indexes: true
